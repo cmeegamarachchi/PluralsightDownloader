@@ -4,9 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Web;
 using Newtonsoft.Json;
 using PluralsightDownloader.Models;
+using PluralsightDownloader.Service.Models;
 
 namespace PluralsightDownloader.Service
 {
@@ -54,6 +56,12 @@ namespace PluralsightDownloader.Service
 
             var course = GetFromPluralSight<Course>(string.Format(CourseSummaryUrl, coursename));
             course.CourseModules = GetFromPluralSight<List<CourseModule>>(string.Format(CourseDetailsUrl, coursename));
+
+            var moduleIndex = 0;
+            course.CourseModules.ForEach(module =>
+            {
+                module.ModuleIndex = moduleIndex++;
+            });
 
             return course;
         }
@@ -122,10 +130,49 @@ namespace PluralsightDownloader.Service
             using (var webClient = new WebClient())
             {
                 var response = webClient.DownloadString(url);
-                result = JsonConvert.DeserializeObject<T>(response);
+                result = JsonConvert.DeserializeObject<T>(response, new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
             }
 
             return result;
+        }
+
+        public void DownloadCourse(string courseUrl, string userName, string password, string path)
+        {
+            var course = GetCourseDetails(courseUrl);
+
+            var clipList = new List<CourseModuleClip>();
+
+            course.CourseModules.ForEach(cm =>
+            {
+                cm.Clips.ForEach(clip =>
+                {
+                    clipList.Add(new CourseModuleClip { CourseModule = cm, Clip = clip});
+                });
+            });
+
+            var cookie = GetAuthCookie(userName, password);
+
+            clipList.ForEach(cl =>
+            {
+                var fileName = MakeFileName(path, cl.CourseModule.Title, cl.CourseModule.ModuleIndex, 
+                                            cl.Clip.Title, cl.Clip.ClipIndex);
+                CreateFolderIfNotFound(fileName);
+
+                DownloadVideo(GetClipLocation(cl.Clip.PlayerParameters, cookie), fileName);
+            });
+        }
+
+        private string MakeFileName(string path, string moduleTitle, int moduleIndex, string title, int clipIndex)
+        {
+            var folderName = $"{path}/{moduleIndex:00}-{moduleTitle}";
+            var fileName =  $"{folderName}/{clipIndex:00}-{title}.mp4";
+            return fileName.Replace('?', '_');
+        }
+
+        private void CreateFolderIfNotFound(string fileName)
+        {
+            var fileInfo = new FileInfo(fileName);
+            fileInfo.Directory.Create();
         }
     }
 }

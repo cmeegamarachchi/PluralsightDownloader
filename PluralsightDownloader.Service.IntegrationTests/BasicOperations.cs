@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Linq;
 using NUnit.Framework;
 
 namespace PluralsightDownloader.Service.IntegrationTests
@@ -70,12 +71,44 @@ namespace PluralsightDownloader.Service.IntegrationTests
             // then video is downloaded to the correct path
         }
 
+        [Test]
+        public void Downloads_complete_course()
+        {
+            // given a valid username and a password
+            var userName = "not-my-user-name";
+            var password = "not-my-password";
+
+            // given a valid course
+            var course = "https://app.pluralsight.com/library/courses/java-ee-7-fundamentals";
+
+            // given a base path
+            var path = @"C:/Users/devadmin/downloads/plsdl";
+            DeleteDirectoryIfExists(path);
+
+            // when DownloadCourse is called
+            var service = new PluralsightDownloaderService();
+            service.DownloadCourse(course, userName, password, path);
+
+            // complete course is downlaoded to base path
+            var directoryInfo = new DirectoryInfo(path);
+            Assert.IsTrue(directoryInfo.GetFiles("*.mp4", SearchOption.AllDirectories).Any());
+        }
+
         private static void DeleteIfExists(string filePath)
         {
             var fileInfo = new FileInfo(filePath);
             if (fileInfo.Exists)
             {
                 fileInfo.Delete();
+            }
+        }
+
+        private static void DeleteDirectoryIfExists(string filePath)
+        {
+            var directoryInfo = new DirectoryInfo(filePath);
+            if (directoryInfo.Exists)
+            {
+                directoryInfo.Delete(true);
             }
         }
     }
