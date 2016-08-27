@@ -23,6 +23,13 @@ namespace PluralsightDownloader.Service
         private const string ClipDetailsUrl = "http://app.pluralsight.com/training/Player/ViewClip";
         private const string UserAgentString = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36";
 
+        public Func<int, int> DownloadDelay { get; set; }
+
+        public PluralsightDownloaderService()
+        {
+            DownloadDelay = a => 5*1000;
+        }
+
         public string GetAuthCookie(string userName, string password)
         {
             var encoding = new ASCIIEncoding();
@@ -159,6 +166,8 @@ namespace PluralsightDownloader.Service
                 CreateFolderIfNotFound(fileName);
 
                 DownloadVideo(GetClipLocation(cl.Clip.PlayerParameters, cookie), fileName);
+
+                DownloadDelay(DateTime.Parse(cl.Clip.Duration).Minute*60);
             });
         }
 
