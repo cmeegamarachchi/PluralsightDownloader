@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -8,6 +10,7 @@ using System.Threading;
 using System.Web;
 using Newtonsoft.Json;
 using PluralsightDownloader.Models;
+using PluralsightDownloader.Service.Events;
 using PluralsightDownloader.Service.Models;
 
 namespace PluralsightDownloader.Service
@@ -24,6 +27,8 @@ namespace PluralsightDownloader.Service
         private const string UserAgentString = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36";
 
         public Func<int, int> DownloadDelay { get; set; }
+
+        public EventHandler<DownloadProgressEventArgs> DownloadProgressEvent { get; set; }
 
         public PluralsightDownloaderService()
         {
@@ -116,14 +121,18 @@ namespace PluralsightDownloader.Service
             using (var stream = client.OpenRead(clipUrl))
             {
                 byte[] buffer = new byte[8192];
+                var downloaded = 0;
                 using (var fileStream = File.OpenWrite(filePath))
                 {
                     var bytesRead = stream.Read(buffer, 0, buffer.Length);
-
-                    while(bytesRead > 0)
+                    while (bytesRead > 0)
                     {
+                        downloaded = downloaded + buffer.Length;
+
                         fileStream.Write(buffer, 0, bytesRead);
                         bytesRead = stream.Read(buffer, 0, buffer.Length);
+
+                        DownloadProgressEventHandeller(String.Format("Downloaded {0:N0}", downloaded));
                     }
                 }
             }
@@ -145,24 +154,39 @@ namespace PluralsightDownloader.Service
 
         public void DownloadCourse(string courseUrl, string userName, string password, string path)
         {
+            // if the thread is not running
+            DownloadCourseTask(courseUrl, userName, password, path);
+        }
+
+        private void DownloadCourseTask(string courseUrl, string userName, string password, string path)
+        {
+            DownloadProgressEventHandeller("Downloading cource details");
+
             var course = GetCourseDetails(courseUrl);
 
             var clipList = new List<CourseModuleClip>();
 
-            course.CourseModules.ForEach(cm =>
-            {
-                cm.Clips.ForEach(clip =>
-                {
-                    clipList.Add(new CourseModuleClip { CourseModule = cm, Clip = clip});
-                });
-            });
+            DownloadProgressEventHandeller("Building cource module list");
+            
+            course.CourseModules.ForEach(
+                cm => { cm.Clips.ForEach(clip => { clipList.Add(new CourseModuleClip {CourseModule = cm, Clip = clip}); }); });
 
+            DownloadProgressEventHandeller("Getting auth cookie");
+            
             var cookie = GetAuthCookie(userName, password);
+
+            if (string.IsNullOrEmpty(cookie))
+            {
+                DownloadProgressEventHandeller("Error: Failed to get cookie");
+                return;
+            }
 
             clipList.ForEach(cl =>
             {
-                var fileName = MakeFileName(path, cl.CourseModule.Title, cl.CourseModule.ModuleIndex, 
-                                            cl.Clip.Title, cl.Clip.ClipIndex);
+                DownloadProgressEventHandeller(String.Format(@"Downloading {0}\{1}", cl.CourseModule.Title, cl.Clip.Title));
+
+                var fileName = MakeFileName(path, cl.CourseModule.Title, cl.CourseModule.ModuleIndex,
+                    cl.Clip.Title, cl.Clip.ClipIndex);
                 CreateFolderIfNotFound(fileName);
 
                 DownloadVideo(GetClipLocation(cl.Clip.PlayerParameters, cookie), fileName);
@@ -182,6 +206,16 @@ namespace PluralsightDownloader.Service
         {
             var fileInfo = new FileInfo(fileName);
             fileInfo.Directory.Create();
+        }
+
+        private void DownloadProgressEventHandeller(string message, CourseModuleClip courseModuleClip = null)
+        {
+            var handel = DownloadProgressEvent;
+
+            if (handel != null)
+            {
+                DownloadProgressEvent(this, new DownloadProgressEventArgs { Message = message, CourseModuleClip = courseModuleClip });
+            }
         }
     }
 }

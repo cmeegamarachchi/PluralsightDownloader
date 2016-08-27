@@ -47,6 +47,7 @@
   <ItemGroup>
     <Compile Include="Behaviors\DelayBasedOnCourseTime.cs" />
     <Compile Include="Behaviors\IDownloadBehavior.cs" />
+    <Compile Include="Events\DownloadProgressEventArgs.cs" />
     <Compile Include="Models\CourseModuleClip.cs" />
     <Compile Include="PluralsightDownloaderService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

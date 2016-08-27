@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using PluralsightDownloader.Service.Behaviors;
@@ -89,6 +90,7 @@ namespace PluralsightDownloader.Service.IntegrationTests
             // when DownloadCourse is called
             var service = new PluralsightDownloaderService();
             service.DownloadDelay = new DelayBasedOnCourseTime().DelayTime;
+            service.DownloadProgressEvent += (sender, args) => { Debug.WriteLine(args.Message); };
             service.DownloadCourse(course, userName, password, path);
 
             // complete course is downlaoded to base path
