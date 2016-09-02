@@ -191,7 +191,7 @@ namespace PluralsightDownloader.Service
 
                 DownloadVideo(GetClipLocation(cl.Clip.PlayerParameters, cookie), fileName);
 
-                DownloadDelay(DateTime.Parse(cl.Clip.Duration).Minute*60);
+                Thread.Sleep(DownloadDelay(DateTime.Parse(cl.Clip.Duration).Minute));
             });
         }
 
