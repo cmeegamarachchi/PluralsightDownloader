@@ -197,9 +197,11 @@ namespace PluralsightDownloader.Service
 
         private string MakeFileName(string path, string moduleTitle, int moduleIndex, string title, int clipIndex)
         {
-            var folderName = $"{path}/{moduleIndex:00}-{moduleTitle}";
-            var fileName =  $"{folderName}/{clipIndex:00}-{title}.mp4";
-            return fileName.Replace('?', '_');
+            var sanatisedModuleTitle = moduleTitle.Replace('?', '_').Replace(':', '_');
+            var sanatisedTitle = title.Replace('?', '_').Replace(':', '_');
+            var folderName = $"{path}/{moduleIndex:00}-{sanatisedModuleTitle}";
+            var fileName =  $"{folderName}/{clipIndex:00}-{sanatisedTitle}.mp4";
+            return fileName;
         }
 
         private void CreateFolderIfNotFound(string fileName)
